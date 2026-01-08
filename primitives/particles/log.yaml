@@ -1,0 +1,113 @@
+metadata:
+  id: "P010"
+  name: "log"
+  type: "particle"
+  version: "1.0.0"
+  status: "stable"
+  description: "Write structured logs for debugging, audit, and monitoring"
+  category: "observability"
+  tags:
+    - log
+    - logging
+    - audit
+    - debug
+    - trace
+
+interface:
+  inputs:
+    - name: "level"
+      type: "enum"
+      enum_values: ["debug", "info", "warn", "error", "audit"]
+      required: false
+      default: "info"
+      description: "Log level"
+    - name: "message"
+      type: "string"
+      required: true
+      description: "Log message"
+    - name: "data"
+      type: "object"
+      required: false
+      description: "Structured data to include"
+    - name: "tags"
+      type: "array"
+      required: false
+      description: "Tags for filtering"
+    - name: "trace_id"
+      type: "string"
+      required: false
+      description: "Trace ID for correlation"
+    - name: "span_id"
+      type: "string"
+      required: false
+      description: "Span ID for tracing"
+    - name: "destination"
+      type: "enum"
+      enum_values: ["stdout", "file", "elasticsearch", "datadog", "cloudwatch"]
+      required: false
+      default: "stdout"
+      description: "Log destination"
+
+  outputs:
+    - name: "logged"
+      type: "boolean"
+      description: "Whether log was written"
+    - name: "log_id"
+      type: "string"
+      description: "Unique log entry ID"
+    - name: "timestamp"
+      type: "string"
+      description: "Log timestamp"
+
+  errors:
+    - code: "DESTINATION_ERROR"
+      description: "Could not write to log destination"
+      retryable: true
+    - code: "SERIALIZATION_ERROR"
+      description: "Could not serialize log data"
+      retryable: false
+
+compilation_targets:
+  n8n:
+    node_type: "code"
+    operation: "console.log"
+  python:
+    module: "structlog"
+    function: "log"
+  temporal:
+    activity: "log_activity"
+
+constraints:
+  timeout: "5s"
+  retry_count: 1
+  idempotent: true
+
+examples:
+  - name: "Info log with data"
+    inputs:
+      level: "info"
+      message: "Order processed successfully"
+      data:
+        order_id: "{{ ref: create_order.result.id }}"
+        amount: "{{ ref: create_order.result.total }}"
+        customer: "{{ input.customer_id }}"
+      tags: ["order", "success"]
+
+  - name: "Error log"
+    inputs:
+      level: "error"
+      message: "Payment processing failed"
+      data:
+        error: "{{ ref: process_payment.error }}"
+        order_id: "{{ input.order_id }}"
+      trace_id: "{{ context.trace_id }}"
+
+  - name: "Audit log"
+    inputs:
+      level: "audit"
+      message: "User accessed sensitive data"
+      data:
+        user_id: "{{ context.user_id }}"
+        resource: "customer_pii"
+        action: "read"
+      destination: "elasticsearch"

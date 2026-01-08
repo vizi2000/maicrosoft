@@ -1,0 +1,107 @@
+metadata:
+  id: "P008"
+  name: "cache"
+  type: "particle"
+  version: "1.0.0"
+  status: "stable"
+  description: "Get, set, or delete values from cache (Redis, memory, etc.)"
+  category: "storage"
+  tags:
+    - cache
+    - redis
+    - memory
+    - key-value
+
+interface:
+  inputs:
+    - name: "operation"
+      type: "enum"
+      enum_values: ["get", "set", "delete", "exists", "expire", "increment", "decrement"]
+      required: true
+      description: "Cache operation"
+    - name: "key"
+      type: "string"
+      required: true
+      description: "Cache key"
+    - name: "value"
+      type: "any"
+      required: false
+      description: "Value to cache (for set)"
+    - name: "ttl"
+      type: "number"
+      required: false
+      description: "Time to live in seconds"
+    - name: "backend"
+      type: "enum"
+      enum_values: ["redis", "memory", "memcached"]
+      required: false
+      default: "redis"
+      description: "Cache backend"
+    - name: "namespace"
+      type: "string"
+      required: false
+      description: "Key namespace/prefix"
+    - name: "amount"
+      type: "number"
+      required: false
+      default: 1
+      description: "Increment/decrement amount"
+
+  outputs:
+    - name: "value"
+      type: "any"
+      description: "Retrieved value (for get)"
+    - name: "success"
+      type: "boolean"
+      description: "Whether operation succeeded"
+    - name: "exists"
+      type: "boolean"
+      description: "Whether key exists"
+    - name: "new_value"
+      type: "number"
+      description: "New value after increment/decrement"
+
+  errors:
+    - code: "CONNECTION_ERROR"
+      description: "Could not connect to cache"
+      retryable: true
+    - code: "KEY_NOT_FOUND"
+      description: "Key does not exist"
+      retryable: false
+    - code: "SERIALIZATION_ERROR"
+      description: "Could not serialize/deserialize value"
+      retryable: false
+
+compilation_targets:
+  n8n:
+    node_type: "redis"
+    operation: "get"
+  python:
+    module: "redis.asyncio"
+    function: "get"
+  temporal:
+    activity: "cache_activity"
+
+constraints:
+  timeout: "10s"
+  retry_count: 2
+  idempotent: true  # get/exists are idempotent
+
+examples:
+  - name: "Cache API response"
+    inputs:
+      operation: "set"
+      key: "user:{{ input.user_id }}"
+      value: "{{ ref: fetch_user.body }}"
+      ttl: 3600
+
+  - name: "Get cached value"
+    inputs:
+      operation: "get"
+      key: "user:{{ input.user_id }}"
+
+  - name: "Rate limiting counter"
+    inputs:
+      operation: "increment"
+      key: "rate:{{ input.ip_address }}"
+      ttl: 60

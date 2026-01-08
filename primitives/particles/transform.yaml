@@ -1,0 +1,118 @@
+metadata:
+  id: "P004"
+  name: "transform"
+  type: "particle"
+  version: "1.0.0"
+  status: "stable"
+  description: "Transform data between formats (JSON, XML, CSV) and apply mappings"
+  category: "transform"
+  tags:
+    - transform
+    - map
+    - filter
+    - json
+    - xml
+    - csv
+
+interface:
+  inputs:
+    - name: "operation"
+      type: "enum"
+      enum_values: ["map", "filter", "reduce", "flatten", "merge", "pick", "omit", "parse", "stringify"]
+      required: true
+      description: "Transformation operation"
+    - name: "source"
+      type: "any"
+      required: true
+      description: "Input data to transform"
+    - name: "template"
+      type: "string"
+      required: false
+      description: "Jinja2/Liquid template for map operation"
+    - name: "condition"
+      type: "string"
+      required: false
+      description: "Filter condition expression"
+    - name: "accumulator"
+      type: "string"
+      required: false
+      description: "Reduce accumulator expression"
+    - name: "initial"
+      type: "any"
+      required: false
+      description: "Initial value for reduce"
+    - name: "fields"
+      type: "array"
+      required: false
+      description: "Fields to pick or omit"
+    - name: "format"
+      type: "enum"
+      enum_values: ["json", "xml", "csv", "yaml", "toml"]
+      required: false
+      default: "json"
+      description: "Parse/stringify format"
+    - name: "merge_strategy"
+      type: "enum"
+      enum_values: ["shallow", "deep", "concat"]
+      required: false
+      default: "shallow"
+      description: "How to merge objects/arrays"
+
+  outputs:
+    - name: "result"
+      type: "any"
+      description: "Transformed data"
+    - name: "count"
+      type: "number"
+      description: "Number of items in result (for arrays)"
+
+  errors:
+    - code: "INVALID_SOURCE"
+      description: "Source data is not valid for operation"
+      retryable: false
+    - code: "TEMPLATE_ERROR"
+      description: "Template syntax error"
+      retryable: false
+    - code: "PARSE_ERROR"
+      description: "Failed to parse input format"
+      retryable: false
+
+compilation_targets:
+  n8n:
+    node_type: "set"
+    version: "3.4"
+  python:
+    module: "jinja2"
+    function: "render"
+  temporal:
+    activity: "transform_activity"
+
+constraints:
+  timeout: "30s"
+  retry_count: 0
+  idempotent: true
+
+examples:
+  - name: "Map array to new format"
+    inputs:
+      operation: "map"
+      source: [{"first": "John", "last": "Doe"}, {"first": "Jane", "last": "Smith"}]
+      template: |
+        {
+          "name": "{{ item.first }} {{ item.last }}",
+          "initials": "{{ item.first[0] }}{{ item.last[0] }}"
+        }
+    expected_outputs:
+      result: [{"name": "John Doe", "initials": "JD"}, {"name": "Jane Smith", "initials": "JS"}]
+
+  - name: "Filter active users"
+    inputs:
+      operation: "filter"
+      source: "{{ ref: fetch_users.body }}"
+      condition: "item.status == 'active'"
+
+  - name: "Parse CSV"
+    inputs:
+      operation: "parse"
+      source: "name,email\nJohn,john@example.com"
+      format: "csv"

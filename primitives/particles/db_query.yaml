@@ -1,0 +1,99 @@
+metadata:
+  id: "P002"
+  name: "db_query"
+  type: "particle"
+  version: "1.0.0"
+  status: "stable"
+  description: "Execute SQL queries against a database"
+  category: "data"
+  tags:
+    - database
+    - sql
+    - query
+    - postgres
+    - mysql
+
+interface:
+  inputs:
+    - name: "query"
+      type: "string"
+      required: true
+      description: "SQL query to execute (use $1, $2 for params)"
+    - name: "params"
+      type: "array"
+      required: false
+      default: []
+      description: "Query parameters (prevents SQL injection)"
+    - name: "connection"
+      type: "string"
+      required: false
+      default: "default"
+      description: "Database connection name from config"
+    - name: "operation"
+      type: "enum"
+      enum_values: ["select", "insert", "update", "delete", "execute"]
+      required: false
+      default: "select"
+      description: "Query operation type"
+    - name: "return_type"
+      type: "enum"
+      enum_values: ["rows", "first", "scalar", "affected"]
+      required: false
+      default: "rows"
+      description: "What to return from query"
+
+  outputs:
+    - name: "result"
+      type: "any"
+      description: "Query result (rows, single row, scalar, or affected count)"
+    - name: "row_count"
+      type: "number"
+      description: "Number of rows returned or affected"
+    - name: "success"
+      type: "boolean"
+      description: "Whether query executed successfully"
+
+  errors:
+    - code: "CONNECTION_ERROR"
+      description: "Could not connect to database"
+      retryable: true
+    - code: "QUERY_ERROR"
+      description: "SQL syntax or execution error"
+      retryable: false
+    - code: "CONSTRAINT_VIOLATION"
+      description: "Unique, foreign key, or check constraint violated"
+      retryable: false
+    - code: "TIMEOUT"
+      description: "Query exceeded timeout"
+      retryable: true
+
+compilation_targets:
+  n8n:
+    node_type: "postgres"
+    operation: "executeQuery"
+  python:
+    module: "asyncpg"
+    function: "fetch"
+  temporal:
+    activity: "db_query_activity"
+
+constraints:
+  timeout: "30s"
+  retry_count: 2
+  idempotent: false  # Depends on query type
+
+examples:
+  - name: "Select users"
+    inputs:
+      query: "SELECT id, name, email FROM users WHERE active = $1"
+      params: [true]
+      return_type: "rows"
+    expected_outputs:
+      success: true
+
+  - name: "Insert record"
+    inputs:
+      query: "INSERT INTO orders (user_id, total) VALUES ($1, $2) RETURNING id"
+      params: ["user-123", 99.99]
+      operation: "insert"
+      return_type: "first"

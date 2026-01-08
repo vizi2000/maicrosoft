@@ -1,0 +1,112 @@
+metadata:
+  id: "P003"
+  name: "file_op"
+  type: "particle"
+  version: "1.0.0"
+  status: "stable"
+  description: "Read, write, or delete files from storage"
+  category: "storage"
+  tags:
+    - file
+    - storage
+    - read
+    - write
+    - s3
+    - local
+
+interface:
+  inputs:
+    - name: "operation"
+      type: "enum"
+      enum_values: ["read", "write", "delete", "exists", "list", "copy", "move"]
+      required: true
+      description: "File operation to perform"
+    - name: "path"
+      type: "string"
+      required: true
+      description: "File path or S3 key"
+    - name: "content"
+      type: "any"
+      required: false
+      description: "Content to write (for write operation)"
+    - name: "encoding"
+      type: "enum"
+      enum_values: ["utf-8", "base64", "binary"]
+      required: false
+      default: "utf-8"
+      description: "Content encoding"
+    - name: "storage"
+      type: "enum"
+      enum_values: ["local", "s3", "gcs", "azure"]
+      required: false
+      default: "local"
+      description: "Storage backend"
+    - name: "bucket"
+      type: "string"
+      required: false
+      description: "Bucket name for cloud storage"
+    - name: "destination"
+      type: "string"
+      required: false
+      description: "Destination path (for copy/move)"
+
+  outputs:
+    - name: "content"
+      type: "any"
+      description: "File content (for read operation)"
+    - name: "success"
+      type: "boolean"
+      description: "Whether operation succeeded"
+    - name: "exists"
+      type: "boolean"
+      description: "Whether file exists (for exists operation)"
+    - name: "files"
+      type: "array"
+      description: "List of files (for list operation)"
+    - name: "metadata"
+      type: "object"
+      description: "File metadata (size, modified, etc.)"
+
+  errors:
+    - code: "FILE_NOT_FOUND"
+      description: "File does not exist"
+      retryable: false
+    - code: "PERMISSION_DENIED"
+      description: "No permission to access file"
+      retryable: false
+    - code: "STORAGE_ERROR"
+      description: "Storage backend error"
+      retryable: true
+    - code: "INVALID_PATH"
+      description: "Path is invalid or outside allowed directory"
+      retryable: false
+
+compilation_targets:
+  n8n:
+    node_type: "readWriteFile"
+    version: "1"
+  python:
+    module: "aiofiles"
+    function: "open"
+  temporal:
+    activity: "file_op_activity"
+
+constraints:
+  timeout: "60s"
+  retry_count: 2
+  idempotent: true  # read/exists are idempotent
+
+examples:
+  - name: "Read JSON file"
+    inputs:
+      operation: "read"
+      path: "/data/config.json"
+      encoding: "utf-8"
+
+  - name: "Write to S3"
+    inputs:
+      operation: "write"
+      path: "reports/daily-2024-01.csv"
+      storage: "s3"
+      bucket: "my-bucket"
+      content: "{{ ref: generate_report.csv }}"

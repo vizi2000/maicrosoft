@@ -1,0 +1,121 @@
+metadata:
+  id: "P009"
+  name: "queue"
+  type: "particle"
+  version: "1.0.0"
+  status: "stable"
+  description: "Publish or consume messages from a message queue"
+  category: "messaging"
+  tags:
+    - queue
+    - pubsub
+    - rabbitmq
+    - kafka
+    - sqs
+
+interface:
+  inputs:
+    - name: "operation"
+      type: "enum"
+      enum_values: ["publish", "subscribe", "ack", "nack", "peek"]
+      required: true
+      description: "Queue operation"
+    - name: "queue"
+      type: "string"
+      required: true
+      description: "Queue/topic name"
+    - name: "message"
+      type: "any"
+      required: false
+      description: "Message to publish"
+    - name: "backend"
+      type: "enum"
+      enum_values: ["rabbitmq", "kafka", "sqs", "redis", "memory"]
+      required: false
+      default: "rabbitmq"
+      description: "Queue backend"
+    - name: "exchange"
+      type: "string"
+      required: false
+      description: "Exchange name (RabbitMQ)"
+    - name: "routing_key"
+      type: "string"
+      required: false
+      description: "Routing key"
+    - name: "headers"
+      type: "object"
+      required: false
+      description: "Message headers"
+    - name: "priority"
+      type: "number"
+      required: false
+      default: 0
+      description: "Message priority (0-10)"
+    - name: "delay"
+      type: "number"
+      required: false
+      description: "Delay in seconds before message is available"
+
+  outputs:
+    - name: "message_id"
+      type: "string"
+      description: "Published message ID"
+    - name: "success"
+      type: "boolean"
+      description: "Whether operation succeeded"
+    - name: "message"
+      type: "any"
+      description: "Received message (for subscribe/peek)"
+    - name: "delivery_tag"
+      type: "string"
+      description: "Delivery tag for ack/nack"
+
+  errors:
+    - code: "CONNECTION_ERROR"
+      description: "Could not connect to queue"
+      retryable: true
+    - code: "QUEUE_NOT_FOUND"
+      description: "Queue does not exist"
+      retryable: false
+    - code: "PUBLISH_ERROR"
+      description: "Failed to publish message"
+      retryable: true
+    - code: "TIMEOUT"
+      description: "Operation timed out"
+      retryable: true
+
+compilation_targets:
+  n8n:
+    node_type: "rabbitmq"
+    operation: "send"
+  python:
+    module: "aio-pika"
+    function: "publish"
+  temporal:
+    activity: "queue_activity"
+
+constraints:
+  timeout: "30s"
+  retry_count: 3
+  idempotent: false
+
+examples:
+  - name: "Publish order event"
+    inputs:
+      operation: "publish"
+      queue: "orders"
+      message:
+        event: "order.created"
+        order_id: "{{ ref: create_order.result.id }}"
+        timestamp: "{{ now() }}"
+      headers:
+        content-type: "application/json"
+
+  - name: "Delayed notification"
+    inputs:
+      operation: "publish"
+      queue: "notifications"
+      message:
+        type: "reminder"
+        user_id: "{{ input.user_id }}"
+      delay: 3600  # 1 hour delay

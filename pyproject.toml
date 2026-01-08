@@ -1,0 +1,91 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "maicrosoft"
+version = "0.1.0"
+description = "Framework for Hallucination-Free AI Coding - Primitives-First Approach"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "BORG.tools", email = "dev@borg.tools"}
+]
+keywords = [
+    "ai",
+    "primitives",
+    "automation",
+    "hallucination-free",
+    "n8n",
+    "workflow"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence"
+]
+dependencies = [
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+    "jsonschema>=4.0",
+    "typer>=0.9",
+    "rich>=13.0",
+    "litellm>=1.0",
+    "httpx>=0.25",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "black>=23.0",
+    "ruff>=0.1",
+    "mypy>=1.0",
+]
+mcp = [
+    "mcp>=1.0",
+    "fastmcp>=0.1",
+]
+embeddings = [
+    "openai>=1.0",
+    "numpy>=1.24",
+]
+
+[project.scripts]
+maicrosoft = "maicrosoft.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/borg-tools/maicrosoft"
+Documentation = "https://github.com/borg-tools/maicrosoft#readme"
+Repository = "https://github.com/borg-tools/maicrosoft"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+maicrosoft = ["py.typed"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

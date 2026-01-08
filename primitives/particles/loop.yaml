@@ -1,0 +1,114 @@
+metadata:
+  id: "P006"
+  name: "loop"
+  type: "particle"
+  version: "1.0.0"
+  status: "stable"
+  description: "Iterate over arrays or ranges, executing nodes for each item"
+  category: "control"
+  tags:
+    - loop
+    - iterate
+    - foreach
+    - batch
+
+interface:
+  inputs:
+    - name: "mode"
+      type: "enum"
+      enum_values: ["foreach", "times", "while", "batch"]
+      required: false
+      default: "foreach"
+      description: "Loop mode"
+    - name: "items"
+      type: "array"
+      required: false
+      description: "Array to iterate over (foreach mode)"
+    - name: "count"
+      type: "number"
+      required: false
+      description: "Number of iterations (times mode)"
+    - name: "condition"
+      type: "string"
+      required: false
+      description: "Continue condition (while mode)"
+    - name: "batch_size"
+      type: "number"
+      required: false
+      default: 10
+      description: "Items per batch (batch mode)"
+    - name: "parallel"
+      type: "boolean"
+      required: false
+      default: false
+      description: "Execute iterations in parallel"
+    - name: "max_parallel"
+      type: "number"
+      required: false
+      default: 5
+      description: "Maximum parallel executions"
+    - name: "max_iterations"
+      type: "number"
+      required: false
+      default: 1000
+      description: "Safety limit for while loops"
+
+  outputs:
+    - name: "results"
+      type: "array"
+      description: "Array of results from each iteration"
+    - name: "index"
+      type: "number"
+      description: "Current iteration index (during loop)"
+    - name: "item"
+      type: "any"
+      description: "Current item (during loop)"
+    - name: "total"
+      type: "number"
+      description: "Total iterations completed"
+
+  errors:
+    - code: "MAX_ITERATIONS"
+      description: "Exceeded maximum iteration limit"
+      retryable: false
+    - code: "INVALID_ITEMS"
+      description: "Items is not iterable"
+      retryable: false
+    - code: "ITERATION_ERROR"
+      description: "Error during iteration"
+      retryable: false
+
+compilation_targets:
+  n8n:
+    node_type: "splitInBatches"
+    version: "3"
+  python:
+    module: "asyncio"
+    function: "gather"
+  temporal:
+    activity: "loop_activity"
+
+constraints:
+  timeout: "300s"
+  retry_count: 0
+  idempotent: false
+
+examples:
+  - name: "Process each user"
+    inputs:
+      mode: "foreach"
+      items: "{{ ref: fetch_users.body }}"
+
+  - name: "Batch process 100 at a time"
+    inputs:
+      mode: "batch"
+      items: "{{ ref: all_records.result }}"
+      batch_size: 100
+      parallel: true
+      max_parallel: 3
+
+  - name: "Retry until success"
+    inputs:
+      mode: "while"
+      condition: "{{ ref: check_status.body.status }} != 'complete'"
+      max_iterations: 10

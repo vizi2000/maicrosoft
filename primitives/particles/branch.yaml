@@ -1,0 +1,107 @@
+metadata:
+  id: "P005"
+  name: "branch"
+  type: "particle"
+  version: "1.0.0"
+  status: "stable"
+  description: "Conditional branching based on expressions (if/else, switch)"
+  category: "control"
+  tags:
+    - branch
+    - condition
+    - if
+    - switch
+    - logic
+
+interface:
+  inputs:
+    - name: "mode"
+      type: "enum"
+      enum_values: ["if", "switch", "all", "any"]
+      required: false
+      default: "if"
+      description: "Branching mode"
+    - name: "condition"
+      type: "string"
+      required: false
+      description: "Boolean expression for if mode"
+    - name: "value"
+      type: "any"
+      required: false
+      description: "Value to switch on"
+    - name: "cases"
+      type: "array"
+      required: false
+      description: "Switch cases [{match: value, output: node_id}]"
+    - name: "conditions"
+      type: "array"
+      required: false
+      description: "Array of conditions for all/any mode"
+    - name: "default"
+      type: "string"
+      required: false
+      description: "Default branch if no condition matches"
+
+  outputs:
+    - name: "branch"
+      type: "string"
+      description: "Name of the selected branch (true/false or case name)"
+    - name: "matched"
+      type: "boolean"
+      description: "Whether any condition matched"
+    - name: "value"
+      type: "any"
+      description: "The evaluated value"
+
+  errors:
+    - code: "INVALID_EXPRESSION"
+      description: "Condition expression is invalid"
+      retryable: false
+    - code: "NO_MATCH"
+      description: "No case matched and no default provided"
+      retryable: false
+
+compilation_targets:
+  n8n:
+    node_type: "if"
+    version: "2"
+  python:
+    module: "maicrosoft.runtime"
+    function: "evaluate_branch"
+  temporal:
+    activity: "branch_activity"
+
+constraints:
+  timeout: "5s"
+  retry_count: 0
+  idempotent: true
+
+examples:
+  - name: "Simple if/else"
+    inputs:
+      mode: "if"
+      condition: "{{ ref: fetch_user.body.age }} >= 18"
+    expected_outputs:
+      branch: "true"
+      matched: true
+
+  - name: "Switch on status"
+    inputs:
+      mode: "switch"
+      value: "{{ ref: order.status }}"
+      cases:
+        - match: "pending"
+          output: "process_pending"
+        - match: "shipped"
+          output: "send_tracking"
+        - match: "delivered"
+          output: "request_review"
+      default: "handle_unknown"
+
+  - name: "All conditions must pass"
+    inputs:
+      mode: "all"
+      conditions:
+        - "{{ ref: user.verified }} == true"
+        - "{{ ref: user.balance }} > 0"
+        - "{{ ref: user.status }} == 'active'"

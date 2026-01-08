@@ -1,0 +1,202 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://maicrosoft.dev/schemas/primitive.json",
+  "title": "Maicrosoft Primitive Schema",
+  "description": "Schema for Maicrosoft particles, atoms, and molecules",
+  "type": "object",
+  "required": ["metadata", "interface"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["id", "name", "type", "version", "status", "description"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^(P|A|M|O)[0-9]{3}$",
+          "description": "Unique primitive ID (P=particle, A=atom, M=molecule, O=organism)"
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Snake_case name"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["particle", "atom", "molecule", "organism"]
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "Semantic version"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "stable", "deprecated"],
+          "description": "Lifecycle status"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 500
+        },
+        "category": {
+          "type": "string",
+          "enum": ["data", "transform", "control", "storage", "messaging", "ai", "observability", "notify"]
+        },
+        "tags": {
+          "type": "array",
+          "items": {"type": "string"},
+          "uniqueItems": true
+        },
+        "generated_from": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^P[0-9]{3}$"},
+          "description": "Particle IDs this atom was composed from"
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^(P|A|M)[0-9]{3}$"},
+          "description": "Dependencies (atoms/molecules only)"
+        }
+      }
+    },
+    "interface": {
+      "type": "object",
+      "required": ["inputs", "outputs"],
+      "properties": {
+        "inputs": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/input_field"}
+        },
+        "outputs": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/output_field"}
+        },
+        "errors": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/error_def"}
+        }
+      }
+    },
+    "compilation_targets": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "node_type": {"type": "string"},
+          "operation": {"type": "string"},
+          "version": {"type": "string"},
+          "module": {"type": "string"},
+          "function": {"type": "string"},
+          "activity": {"type": "string"}
+        }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "type": "string",
+          "pattern": "^[0-9]+(s|m|h)$"
+        },
+        "retry_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "idempotent": {"type": "boolean"}
+      }
+    },
+    "composition": {
+      "type": "array",
+      "description": "For atoms: how to compose from particles",
+      "items": {
+        "type": "object",
+        "required": ["particle", "inputs"],
+        "properties": {
+          "particle": {"type": "string", "pattern": "^P[0-9]{3}$"},
+          "inputs": {"type": "object"},
+          "outputs": {"type": "object"}
+        }
+      }
+    },
+    "examples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "inputs"],
+        "properties": {
+          "name": {"type": "string"},
+          "inputs": {"type": "object"},
+          "expected_outputs": {"type": "object"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "input_field": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["string", "number", "boolean", "object", "array", "any", "enum"]
+        },
+        "enum_values": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
+        "default": {},
+        "description": {"type": "string"},
+        "validation": {
+          "type": "object",
+          "properties": {
+            "min": {"type": "number"},
+            "max": {"type": "number"},
+            "pattern": {"type": "string"},
+            "min_length": {"type": "integer"},
+            "max_length": {"type": "integer"}
+          }
+        }
+      }
+    },
+    "output_field": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["string", "number", "boolean", "object", "array", "any"]
+        },
+        "description": {"type": "string"}
+      }
+    },
+    "error_def": {
+      "type": "object",
+      "required": ["code"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]*$"
+        },
+        "description": {"type": "string"},
+        "retryable": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    }
+  }
+}

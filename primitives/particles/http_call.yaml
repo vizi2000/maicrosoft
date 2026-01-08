@@ -1,0 +1,118 @@
+metadata:
+  id: "P001"
+  name: "http_call"
+  type: "particle"
+  version: "1.0.0"
+  status: "stable"
+  description: "Make any HTTP request to external APIs or services"
+  category: "data"
+  tags:
+    - http
+    - api
+    - rest
+    - request
+
+interface:
+  inputs:
+    - name: "method"
+      type: "enum"
+      enum_values: ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
+      required: true
+      description: "HTTP method to use"
+    - name: "url"
+      type: "string"
+      required: true
+      description: "Full URL to call (supports template variables)"
+    - name: "headers"
+      type: "object"
+      required: false
+      default: {}
+      description: "HTTP headers as key-value pairs"
+    - name: "body"
+      type: "any"
+      required: false
+      description: "Request body (for POST, PUT, PATCH)"
+    - name: "query_params"
+      type: "object"
+      required: false
+      default: {}
+      description: "URL query parameters"
+    - name: "timeout"
+      type: "number"
+      required: false
+      default: 30
+      description: "Request timeout in seconds"
+    - name: "retry_count"
+      type: "number"
+      required: false
+      default: 0
+      description: "Number of retries on failure"
+    - name: "auth"
+      type: "object"
+      required: false
+      description: "Authentication config (bearer, basic, api_key)"
+
+  outputs:
+    - name: "status"
+      type: "number"
+      description: "HTTP status code"
+    - name: "body"
+      type: "any"
+      description: "Response body (auto-parsed JSON if applicable)"
+    - name: "headers"
+      type: "object"
+      description: "Response headers"
+    - name: "ok"
+      type: "boolean"
+      description: "True if status is 2xx"
+
+  errors:
+    - code: "TIMEOUT"
+      description: "Request timed out"
+      retryable: true
+    - code: "CONNECTION_ERROR"
+      description: "Could not connect to server"
+      retryable: true
+    - code: "HTTP_4XX"
+      description: "Client error (400-499)"
+      retryable: false
+    - code: "HTTP_5XX"
+      description: "Server error (500-599)"
+      retryable: true
+
+compilation_targets:
+  n8n:
+    node_type: "httpRequest"
+    version: "4.2"
+  python:
+    module: "httpx"
+    function: "request"
+  temporal:
+    activity: "http_call_activity"
+
+constraints:
+  timeout: "60s"
+  retry_count: 3
+  idempotent: false  # Depends on method
+
+examples:
+  - name: "Simple GET"
+    inputs:
+      method: "GET"
+      url: "https://api.example.com/users"
+    expected_outputs:
+      status: 200
+      ok: true
+
+  - name: "POST with auth"
+    inputs:
+      method: "POST"
+      url: "https://api.example.com/orders"
+      headers:
+        Content-Type: "application/json"
+      body:
+        product_id: "123"
+        quantity: 2
+      auth:
+        type: "bearer"
+        token: "{{ config.api_token }}"

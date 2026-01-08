@@ -1,0 +1,69 @@
+# Example: Simple data fetch and transform workflow
+# This plan demonstrates basic Maicrosoft primitives usage
+
+metadata:
+  id: "plan-simple-fetch"
+  name: "Simple Data Fetch and Transform"
+  version: "1.0.0"
+  description: "Fetch data from API, transform it, and log results"
+
+settings:
+  allow_fallback: false
+  risk_level: "low"
+
+trigger:
+  type: "manual"
+  config: {}
+
+nodes:
+  # Step 1: Fetch data from API
+  - id: "fetch_users"
+    primitive_id: "P001"  # http_call
+    inputs:
+      method: "GET"
+      url: "https://jsonplaceholder.typicode.com/users"
+      headers:
+        Accept: "application/json"
+      timeout: 30
+
+  # Step 2: Transform the data
+  - id: "transform_users"
+    primitive_id: "P004"  # transform
+    inputs:
+      operation: "map"
+      source: "{{ ref: fetch_users.body }}"
+      template: |
+        {
+          "name": "{{ item.name }}",
+          "email": "{{ item.email }}",
+          "city": "{{ item.address.city }}"
+        }
+
+  # Step 3: Filter active users (example condition)
+  - id: "filter_users"
+    primitive_id: "P004"  # transform
+    inputs:
+      operation: "filter"
+      source: "{{ ref: transform_users.result }}"
+      condition: "item.city != null"
+
+  # Step 4: Log the results
+  - id: "log_results"
+    primitive_id: "P010"  # log
+    inputs:
+      level: "info"
+      message: "Processed users successfully"
+      data:
+        count: "{{ ref: filter_users.count }}"
+        users: "{{ ref: filter_users.result }}"
+      tags:
+        - "users"
+        - "fetch"
+
+edges:
+  - from_node: "fetch_users"
+    to_node: "transform_users"
+  - from_node: "transform_users"
+    to_node: "filter_users"
+  - from_node: "filter_users"
+    to_node: "log_results"

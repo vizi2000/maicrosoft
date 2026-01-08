@@ -1,0 +1,105 @@
+# Maicrosoft Primitives Registry
+# Master index of all available particles, atoms, molecules, and organisms
+
+version: "1.0.0"
+last_updated: "2026-01-08"
+
+# Base Particles (P001-P010)
+# These are the fundamental building blocks that compose into atoms
+particles:
+  - id: "P001"
+    name: "http_call"
+    path: "particles/http_call.yaml"
+    category: "data"
+    status: "stable"
+    description: "Make any HTTP request"
+
+  - id: "P002"
+    name: "db_query"
+    path: "particles/db_query.yaml"
+    category: "data"
+    status: "stable"
+    description: "Execute SQL queries"
+
+  - id: "P003"
+    name: "file_op"
+    path: "particles/file_op.yaml"
+    category: "storage"
+    status: "stable"
+    description: "File read/write/delete operations"
+
+  - id: "P004"
+    name: "transform"
+    path: "particles/transform.yaml"
+    category: "transform"
+    status: "stable"
+    description: "Data transformation (map, filter, parse)"
+
+  - id: "P005"
+    name: "branch"
+    path: "particles/branch.yaml"
+    category: "control"
+    status: "stable"
+    description: "Conditional branching (if/else, switch)"
+
+  - id: "P006"
+    name: "loop"
+    path: "particles/loop.yaml"
+    category: "control"
+    status: "stable"
+    description: "Iteration over arrays/ranges"
+
+  - id: "P007"
+    name: "llm_call"
+    path: "particles/llm_call.yaml"
+    category: "ai"
+    status: "stable"
+    description: "AI model invocation"
+
+  - id: "P008"
+    name: "cache"
+    path: "particles/cache.yaml"
+    category: "storage"
+    status: "stable"
+    description: "Cache get/set operations"
+
+  - id: "P009"
+    name: "queue"
+    path: "particles/queue.yaml"
+    category: "messaging"
+    status: "stable"
+    description: "Message queue pub/sub"
+
+  - id: "P010"
+    name: "log"
+    path: "particles/log.yaml"
+    category: "observability"
+    status: "stable"
+    description: "Structured logging"
+
+# Atoms (A001-A999)
+# Composed from particles, single-purpose operations
+atoms: []
+
+# Molecules (M001-M999)
+# Composed from atoms, multi-step workflows
+molecules: []
+
+# Organisms (O001-O999)
+# Complete business processes
+organisms: []
+
+# Statistics
+stats:
+  total_particles: 10
+  total_atoms: 0
+  total_molecules: 0
+  total_organisms: 0
+  categories:
+    data: 2
+    transform: 1
+    control: 2
+    storage: 2
+    messaging: 1
+    ai: 1
+    observability: 1
