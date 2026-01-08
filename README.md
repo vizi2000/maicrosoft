@@ -260,4 +260,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ---
 
+## Author
+
+**Wojciech Wiesner** - [wojciech@theones.io](mailto:wojciech@theones.io)
+
 Created by The Collective BORG.tools by assimilation of best technology and human assets.
