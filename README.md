@@ -200,9 +200,59 @@ my-automation/
 └── compiled/            # Generated outputs
 ```
 
+## Deployment
+
+### Git & GitHub
+
+- **Repository**: https://github.com/vizi2000/maicrosoft
+- **Current commit**: 7b2f7f7 - feat: Complete MVP implementation of Maicrosoft framework
+
+### Hostinger VPS
+
+- **Server**: 168.231.108.33 (Ubuntu 24.04, Python 3.12.3)
+- **Location**: /opt/maicrosoft
+- **Virtual env**: /opt/maicrosoft/venv
+
+To use on Hostinger:
+
+```bash
+ssh root@168.231.108.33
+cd /opt/maicrosoft
+source venv/bin/activate
+
+# Available commands:
+maicrosoft particles      # List primitives
+maicrosoft validate plan.yaml  # Validate a plan
+maicrosoft compile plan.yaml   # Compile to N8N
+maicrosoft compose "description"  # AI-assisted composition
+maicrosoft serve          # Start MCP server
+```
+
 ## License
 
-MIT
+Maicrosoft core (this repository) is free software licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+
+You are free to use, study, and modify the Maicrosoft core. If you run a modified version of Maicrosoft over a network (including as a SaaS or internal service) you must make the complete corresponding source code of your modified version available to its users under the AGPL-3.0.
+
+The Maicrosoft Cloud SaaS platform, commercial editions, and any proprietary extensions (including but not limited to multi-tenant management, advanced governance, monitoring, billing, and enterprise integrations) are **not** covered by the AGPL-3.0 license. They are provided under separate commercial terms by BORG.tools.
+
+The copyright to Maicrosoft is held by BORG.tools (and/or its authors).
+BORG.tools may offer Maicrosoft under separate commercial licenses (dual licensing) for organizations that cannot, or do not wish to, comply with the obligations of the AGPL-3.0 or that want to embed Maicrosoft as part of their own hosted services.
+
+## Commercial Licensing and SaaS
+
+Maicrosoft core is available under the AGPL-3.0 for open source use.
+
+For companies that:
+- cannot or do not want to release their modifications and integrations under AGPL-3.0,
+- want to embed Maicrosoft into their own commercial or hosted products,
+- want to offer Maicrosoft-based automation as a managed service for their customers,
+
+BORG.tools offers separate commercial licenses and a hosted Maicrosoft Cloud SaaS.
+
+The Maicrosoft Cloud SaaS, commercial editions, and proprietary extensions are licensed under BORG.tools commercial terms and are not governed by the AGPL-3.0 license of this repository.
+
+For enterprise use, OEM, white-label, or large-scale hosted deployments, please contact: **contact@borg.tools**
 
 ## Contributing
 
