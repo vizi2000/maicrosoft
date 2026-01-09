@@ -1,0 +1,83 @@
+# P016: ui_page
+# Define application page
+
+metadata:
+  id: P016
+  name: ui_page
+  version: "1.0.0"
+  description: "Define application page with routing and layout"
+  category: scaffold
+  status: stable
+  tags:
+    - ui
+    - page
+    - routing
+    - code-generation
+
+interface:
+  inputs:
+    - name: path
+      type: string
+      required: true
+      description: "Route path (e.g., /users/:id)"
+
+    - name: component
+      type: string
+      required: true
+      description: "Page component name"
+
+    - name: layout
+      type: string
+      required: false
+      description: "Layout to use"
+      enum: [main, minimal, canvas, fullscreen]
+      default: main
+
+    - name: auth
+      type: string
+      required: false
+      description: "Authentication requirement"
+      enum: [required, public, guest-only]
+      default: required
+
+    - name: rbac
+      type: array
+      required: false
+      description: "Required roles to access"
+
+    - name: title
+      type: string
+      required: false
+      description: "Page title"
+
+    - name: meta
+      type: object
+      required: false
+      description: "SEO meta tags"
+
+    - name: data_fetching
+      type: object
+      required: false
+      description: "Data to fetch on load"
+
+  outputs:
+    - name: page_code
+      type: string
+      description: "Generated page code"
+
+    - name: route_config
+      type: object
+      description: "Route configuration"
+
+examples:
+  - name: Dashboard Page
+    inputs:
+      path: /
+      component: Dashboard
+      layout: main
+      auth: required
+      title: Dashboard
+      data_fetching:
+        plans: /api/plans
+        stats: /api/stats
+    description: "Define dashboard page with data fetching"

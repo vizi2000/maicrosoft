@@ -1,0 +1,456 @@
+# Maicrosoft GUI - Simplified Meta-Plan
+# Clean YAML structure for compilation
+
+metadata:
+  id: maicrosoft-gui
+  name: "Maicrosoft GUI"
+  version: "1.0.0"
+  description: "Visual workflow builder for primitives-first AI coding"
+
+stack:
+  backend:
+    framework: fastapi
+    python_version: "3.11"
+    database: postgresql
+    cache: redis
+    orm: sqlalchemy
+  frontend:
+    framework: react
+    version: "18"
+    bundler: vite
+    styling: tailwind
+    state: zustand
+    api_client: tanstack-query
+
+models:
+  User:
+    table: users
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: gen_random_uuid
+      email:
+        type: string
+        unique: true
+        required: true
+        max: 255
+      password_hash:
+        type: string
+        max: 255
+      name:
+        type: string
+        max: 255
+      role:
+        type: enum
+        values:
+          - admin
+          - owner
+          - editor
+          - viewer
+        default: viewer
+      created_at:
+        type: timestamp
+        default: now
+
+  Plan:
+    table: plans
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: gen_random_uuid
+      name:
+        type: string
+        required: true
+        max: 255
+      description:
+        type: text
+      owner_id:
+        type: uuid
+        ref: User.id
+      current_version_id:
+        type: uuid
+      is_active:
+        type: boolean
+        default: true
+      created_at:
+        type: timestamp
+        default: now
+      updated_at:
+        type: timestamp
+        default: now
+
+  PlanVersion:
+    table: plan_versions
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: gen_random_uuid
+      plan_id:
+        type: uuid
+        ref: Plan.id
+        on_delete: cascade
+      version_number:
+        type: integer
+        required: true
+      plan_json:
+        type: jsonb
+        required: true
+      canvas_json:
+        type: jsonb
+      created_by:
+        type: uuid
+        ref: User.id
+      created_at:
+        type: timestamp
+        default: now
+
+  Secret:
+    table: secrets
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: gen_random_uuid
+      name:
+        type: string
+        required: true
+        max: 255
+      encrypted_value:
+        type: bytes
+        required: true
+      secret_type:
+        type: enum
+        values:
+          - api_key
+          - oauth
+          - password
+          - connection_string
+      owner_id:
+        type: uuid
+        ref: User.id
+      created_at:
+        type: timestamp
+        default: now
+
+  RunHistory:
+    table: run_history
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: gen_random_uuid
+      plan_id:
+        type: uuid
+        ref: Plan.id
+      version_id:
+        type: uuid
+        ref: PlanVersion.id
+      status:
+        type: enum
+        values:
+          - pending
+          - running
+          - completed
+          - failed
+          - cancelled
+      trigger_type:
+        type: enum
+        values:
+          - manual
+          - webhook
+          - schedule
+      started_at:
+        type: timestamp
+        default: now
+      completed_at:
+        type: timestamp
+      error_message:
+        type: text
+
+  NodeLog:
+    table: node_logs
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: gen_random_uuid
+      run_id:
+        type: uuid
+        ref: RunHistory.id
+        on_delete: cascade
+      node_id:
+        type: string
+        required: true
+        max: 255
+      status:
+        type: enum
+        values:
+          - pending
+          - running
+          - completed
+          - failed
+          - skipped
+      input_data:
+        type: jsonb
+      output_data:
+        type: jsonb
+      error_data:
+        type: jsonb
+      started_at:
+        type: timestamp
+      completed_at:
+        type: timestamp
+
+  Template:
+    table: templates
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: gen_random_uuid
+      name:
+        type: string
+        required: true
+        max: 255
+      category:
+        type: string
+        max: 100
+      description:
+        type: text
+      plan_json:
+        type: jsonb
+        required: true
+      canvas_json:
+        type: jsonb
+      usage_count:
+        type: integer
+        default: 0
+      is_public:
+        type: boolean
+        default: true
+
+api:
+  prefix: /api
+
+  auth:
+    routes:
+      - path: /auth/register
+        method: POST
+        handler: register_user
+        public: true
+
+      - path: /auth/login
+        method: POST
+        handler: login_user
+        public: true
+
+      - path: /auth/refresh
+        method: POST
+        handler: refresh_token
+        public: true
+
+      - path: /auth/me
+        method: GET
+        handler: get_current_user
+
+  plans:
+    routes:
+      - path: /plans
+        method: GET
+        handler: list_plans
+
+      - path: /plans
+        method: POST
+        handler: create_plan
+
+      - path: /plans/{id}
+        method: GET
+        handler: get_plan
+
+      - path: /plans/{id}
+        method: PUT
+        handler: update_plan
+
+      - path: /plans/{id}
+        method: DELETE
+        handler: delete_plan
+
+      - path: /plans/{id}/versions
+        method: GET
+        handler: list_versions
+
+      - path: /plans/{id}/versions
+        method: POST
+        handler: create_version
+
+  validation:
+    routes:
+      - path: /validate
+        method: POST
+        handler: validate_plan
+
+    websocket:
+      - path: /ws/validate
+        handler: validation_stream
+
+  execution:
+    routes:
+      - path: /plans/{id}/run
+        method: POST
+        handler: execute_plan
+
+      - path: /runs
+        method: GET
+        handler: list_runs
+
+      - path: /runs/{id}
+        method: GET
+        handler: get_run
+
+  primitives:
+    routes:
+      - path: /primitives
+        method: GET
+        handler: list_primitives
+
+      - path: /primitives/{id}
+        method: GET
+        handler: get_primitive
+
+      - path: /primitives/search
+        method: GET
+        handler: search_primitives
+
+  secrets:
+    routes:
+      - path: /secrets
+        method: GET
+        handler: list_secrets
+
+      - path: /secrets
+        method: POST
+        handler: create_secret
+
+      - path: /secrets/{id}
+        method: DELETE
+        handler: delete_secret
+
+  templates:
+    routes:
+      - path: /templates
+        method: GET
+        handler: list_templates
+
+      - path: /templates/{id}
+        method: GET
+        handler: get_template
+
+  github:
+    routes:
+      - path: /analyze/github
+        method: POST
+        handler: analyze_github_repo
+
+  compile:
+    routes:
+      - path: /compile
+        method: POST
+        handler: compile_plan
+
+pages:
+  - path: /
+    component: Dashboard
+    layout: main
+    auth: required
+
+  - path: /login
+    component: Login
+    layout: minimal
+    auth: public
+
+  - path: /register
+    component: Register
+    layout: minimal
+    auth: public
+
+  - path: /workflows
+    component: WorkflowList
+    layout: main
+    auth: required
+
+  - path: /workflows/new
+    component: WorkflowBuilder
+    layout: canvas
+    auth: required
+
+  - path: /workflows/{id}
+    component: WorkflowBuilder
+    layout: canvas
+    auth: required
+
+  - path: /runs
+    component: RunHistory
+    layout: main
+    auth: required
+
+  - path: /runs/{id}
+    component: RunDetails
+    layout: main
+    auth: required
+
+  - path: /templates
+    component: TemplateGallery
+    layout: main
+    auth: required
+
+  - path: /secrets
+    component: SecretManager
+    layout: main
+    auth: required
+
+  - path: /settings
+    component: Settings
+    layout: main
+    auth: required
+
+  - path: /analyze
+    component: GitHubAnalyzer
+    layout: main
+    auth: required
+
+components:
+  workflow:
+    - WorkflowCanvas
+    - NodePalette
+    - CustomNode
+    - NodeConfigPanel
+    - ValidationPanel
+
+  shared:
+    - Layout
+    - Sidebar
+    - Header
+
+layouts:
+  main:
+    structure:
+      - Header
+      - Sidebar
+      - Content
+      - Footer
+
+  canvas:
+    structure:
+      - Header
+      - NodePalette
+      - WorkflowCanvas
+      - NodeConfigPanel
+      - ValidationPanel
+    fullscreen: true
+
+  minimal:
+    structure:
+      - Content

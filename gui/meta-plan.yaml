@@ -1,0 +1,1067 @@
+# Maicrosoft GUI - Meta-Plan
+# Deklaratywna definicja aplikacji kompilowana do kodu
+# Zero ręcznego kodowania - wszystko z YAML
+
+metadata:
+  id: maicrosoft-gui
+  name: "Maicrosoft GUI"
+  version: "1.0.0"
+  description: "Visual workflow builder for primitives-first AI coding"
+
+# =============================================================================
+# STACK CONFIGURATION
+# =============================================================================
+stack:
+  backend:
+    framework: fastapi
+    python_version: "3.11"
+    database: postgresql
+    cache: redis
+    orm: sqlalchemy
+
+  frontend:
+    framework: react
+    version: "18"
+    bundler: vite
+    styling: tailwind
+    state: zustand
+    api_client: tanstack-query
+
+  deployment:
+    target: docker
+    server: "168.231.108.33"
+    path: "/opt/maicrosoft-gui"
+
+# =============================================================================
+# DATABASE MODELS
+# =============================================================================
+models:
+  User:
+    table: users
+    fields:
+      id: { type: uuid, primary: true, default: gen_random_uuid }
+      email: { type: string, unique: true, required: true, max: 255 }
+      password_hash: { type: string, max: 255 }
+      name: { type: string, max: 255 }
+      role: { type: enum, values: [admin, owner, editor, viewer], default: viewer }
+      created_at: { type: timestamp, default: now }
+    indexes:
+      - fields: [email]
+
+  Plan:
+    table: plans
+    fields:
+      id: { type: uuid, primary: true, default: gen_random_uuid }
+      name: { type: string, required: true, max: 255 }
+      description: { type: text }
+      owner_id: { type: uuid, ref: User.id }
+      current_version_id: { type: uuid }
+      is_active: { type: boolean, default: true }
+      created_at: { type: timestamp, default: now }
+      updated_at: { type: timestamp, default: now, on_update: now }
+    indexes:
+      - fields: [owner_id]
+      - fields: [is_active]
+
+  PlanVersion:
+    table: plan_versions
+    fields:
+      id: { type: uuid, primary: true, default: gen_random_uuid }
+      plan_id: { type: uuid, ref: Plan.id, on_delete: cascade }
+      version_number: { type: integer, required: true }
+      plan_json: { type: jsonb, required: true }
+      canvas_json: { type: jsonb }
+      created_by: { type: uuid, ref: User.id }
+      created_at: { type: timestamp, default: now }
+    constraints:
+      - type: unique
+        fields: [plan_id, version_number]
+
+  Secret:
+    table: secrets
+    fields:
+      id: { type: uuid, primary: true, default: gen_random_uuid }
+      name: { type: string, required: true, max: 255 }
+      encrypted_value: { type: bytes, required: true }
+      secret_type: { type: enum, values: [api_key, oauth, password, connection_string] }
+      owner_id: { type: uuid, ref: User.id }
+      scopes: { type: array, of: string }
+      expires_at: { type: timestamp }
+      created_at: { type: timestamp, default: now }
+
+  OAuthConnection:
+    table: oauth_connections
+    fields:
+      id: { type: uuid, primary: true, default: gen_random_uuid }
+      user_id: { type: uuid, ref: User.id }
+      provider: { type: enum, values: [google, slack, github], required: true }
+      access_token_encrypted: { type: bytes }
+      refresh_token_encrypted: { type: bytes }
+      scopes: { type: array, of: string }
+      expires_at: { type: timestamp }
+      created_at: { type: timestamp, default: now }
+
+  RunHistory:
+    table: run_history
+    fields:
+      id: { type: uuid, primary: true, default: gen_random_uuid }
+      plan_id: { type: uuid, ref: Plan.id }
+      version_id: { type: uuid, ref: PlanVersion.id }
+      status: { type: enum, values: [pending, running, completed, failed, cancelled] }
+      trigger_type: { type: enum, values: [manual, webhook, schedule] }
+      started_at: { type: timestamp, default: now }
+      completed_at: { type: timestamp }
+      error_message: { type: text }
+      n8n_execution_id: { type: string, max: 255 }
+    indexes:
+      - fields: [plan_id, started_at]
+      - fields: [status]
+
+  NodeLog:
+    table: node_logs
+    fields:
+      id: { type: uuid, primary: true, default: gen_random_uuid }
+      run_id: { type: uuid, ref: RunHistory.id, on_delete: cascade }
+      node_id: { type: string, required: true, max: 255 }
+      status: { type: enum, values: [pending, running, completed, failed, skipped] }
+      input_data: { type: jsonb }
+      output_data: { type: jsonb }
+      error_data: { type: jsonb }
+      started_at: { type: timestamp }
+      completed_at: { type: timestamp }
+      retry_count: { type: integer, default: 0 }
+    indexes:
+      - fields: [run_id, node_id]
+
+  Template:
+    table: templates
+    fields:
+      id: { type: uuid, primary: true, default: gen_random_uuid }
+      name: { type: string, required: true, max: 255 }
+      category: { type: string, max: 100 }
+      description: { type: text }
+      plan_json: { type: jsonb, required: true }
+      canvas_json: { type: jsonb }
+      tags: { type: array, of: string }
+      usage_count: { type: integer, default: 0 }
+      is_public: { type: boolean, default: true }
+
+  DLQ:
+    table: dlq
+    fields:
+      id: { type: uuid, primary: true, default: gen_random_uuid }
+      run_id: { type: uuid, ref: RunHistory.id }
+      node_id: { type: string, max: 255 }
+      payload: { type: jsonb }
+      error_message: { type: text }
+      retry_count: { type: integer, default: 0 }
+      max_retries: { type: integer, default: 3 }
+      created_at: { type: timestamp, default: now }
+      processed_at: { type: timestamp }
+
+# =============================================================================
+# API ENDPOINTS
+# =============================================================================
+api:
+  prefix: /api
+
+  auth:
+    routes:
+      - path: /auth/register
+        method: POST
+        handler: register_user
+        input: { email: string, password: string, name: "string?" }
+        output: { user: User, token: string }
+        public: true
+
+      - path: /auth/login
+        method: POST
+        handler: login_user
+        input: { email: string, password: string }
+        output: { user: User, token: string }
+        public: true
+
+      - path: /auth/refresh
+        method: POST
+        handler: refresh_token
+        input: { refresh_token: string }
+        output: { token: string }
+        public: true
+
+      - path: /auth/me
+        method: GET
+        handler: get_current_user
+        output: { user: User }
+
+  plans:
+    routes:
+      - path: /plans
+        method: GET
+        handler: list_plans
+        output: { plans: "Plan[]", total: integer }
+        query: { page: "integer?", limit: "integer?", search: "string?" }
+
+      - path: /plans
+        method: POST
+        handler: create_plan
+        input: { name: string, description: "string?" }
+        output: { plan: Plan }
+        rbac: [admin, owner, editor]
+
+      - path: /plans/{id}
+        method: GET
+        handler: get_plan
+        output: { plan: Plan, version: PlanVersion }
+
+      - path: /plans/{id}
+        method: PUT
+        handler: update_plan
+        input: { name: "string?", description: "string?", is_active: boolean? }
+        output: { plan: Plan }
+        rbac: [admin, owner, editor]
+        owner_check: true
+
+      - path: /plans/{id}
+        method: DELETE
+        handler: delete_plan
+        rbac: [admin, owner]
+        owner_check: true
+
+      - path: /plans/{id}/versions
+        method: GET
+        handler: list_versions
+        output: { versions: "PlanVersion[]" }
+
+      - path: /plans/{id}/versions
+        method: POST
+        handler: create_version
+        input: { plan_json: object, canvas_json: object? }
+        output: { version: PlanVersion }
+        rbac: [admin, owner, editor]
+        owner_check: true
+
+      - path: /plans/{id}/rollback/{version}
+        method: POST
+        handler: rollback_version
+        output: { plan: Plan, version: PlanVersion }
+        rbac: [admin, owner]
+        owner_check: true
+
+  validation:
+    routes:
+      - path: /validate
+        method: POST
+        handler: validate_plan
+        input: { plan_json: object }
+        output: { valid: boolean, errors: array, warnings: array }
+
+    websocket:
+      - path: /ws/validate
+        handler: validation_stream
+        description: "Real-time validation as user edits"
+
+  execution:
+    routes:
+      - path: /plans/{id}/run
+        method: POST
+        handler: execute_plan
+        input: { input_data: object?, sandbox: boolean? }
+        output: { run: RunHistory }
+        rbac: [admin, owner, editor]
+
+      - path: /plans/{id}/sandbox
+        method: POST
+        handler: sandbox_run
+        input: { plan_json: object, input_data: object? }
+        output: { run: RunHistory, results: object }
+
+      - path: /runs
+        method: GET
+        handler: list_runs
+        output: { runs: "RunHistory[]", total: integer }
+        query: { plan_id: "uuid?", status: "string?", page: "integer?", limit: "integer?" }
+
+      - path: /runs/{id}
+        method: GET
+        handler: get_run
+        output: { run: RunHistory, logs: "NodeLog[]" }
+
+      - path: /runs/{id}/replay
+        method: POST
+        handler: replay_run
+        output: { run: RunHistory }
+        rbac: [admin, owner, editor]
+
+      - path: /runs/{id}/cancel
+        method: POST
+        handler: cancel_run
+        rbac: [admin, owner, editor]
+
+  primitives:
+    routes:
+      - path: /primitives
+        method: GET
+        handler: list_primitives
+        output: { primitives: array }
+        query: { category: "string?", status: "string?" }
+        bridge: maicrosoft.registry.list
+
+      - path: /primitives/{id}
+        method: GET
+        handler: get_primitive
+        output: { primitive: object }
+        bridge: maicrosoft.registry.get
+
+      - path: /primitives/search
+        method: GET
+        handler: search_primitives
+        output: { results: array }
+        query: { q: string, limit: "integer?" }
+        bridge: maicrosoft.llm.search_primitives
+
+  secrets:
+    routes:
+      - path: /secrets
+        method: GET
+        handler: list_secrets
+        output: { secrets: array }
+        description: "Returns names only, never values"
+
+      - path: /secrets
+        method: POST
+        handler: create_secret
+        input: { name: string, value: string, secret_type: string, scopes: "array?" }
+        output: { secret: Secret }
+        encryption: AES-256-GCM
+
+      - path: /secrets/{id}
+        method: PUT
+        handler: update_secret
+        input: { value: "string?", scopes: "array?", expires_at: timestamp? }
+        owner_check: true
+
+      - path: /secrets/{id}
+        method: DELETE
+        handler: delete_secret
+        owner_check: true
+
+      - path: /secrets/{id}/rotate
+        method: POST
+        handler: rotate_secret
+        input: { new_value: string }
+        owner_check: true
+
+  oauth:
+    routes:
+      - path: /oauth/providers
+        method: GET
+        handler: list_providers
+        output: { providers: array }
+
+      - path: /oauth/{provider}/authorize
+        method: GET
+        handler: start_oauth
+        output: { redirect_url: string }
+
+      - path: /oauth/{provider}/callback
+        method: GET
+        handler: oauth_callback
+        public: true
+
+      - path: /oauth/{provider}
+        method: DELETE
+        handler: disconnect_oauth
+
+  templates:
+    routes:
+      - path: /templates
+        method: GET
+        handler: list_templates
+        output: { templates: "Template[]" }
+        query: { category: "string?", tags: "array?" }
+
+      - path: /templates/{id}
+        method: GET
+        handler: get_template
+        output: { template: Template }
+
+      - path: /plans/from-template/{id}
+        method: POST
+        handler: create_from_template
+        input: { name: string }
+        output: { plan: Plan }
+
+  github:
+    routes:
+      - path: /analyze/github
+        method: POST
+        handler: analyze_github_repo
+        input: { repo_url: string, branch: "string?" }
+        output: { analysis: object, suggested_plan: object, coverage: number, gaps: array }
+        bridge: agent_zero_mcp
+        mcp_endpoint: "http://194.181.240.37:50001/mcp/t-T7kevcXi6oDxfrhK/http"
+
+  compile:
+    routes:
+      - path: /compile
+        method: POST
+        handler: compile_plan
+        input: { plan_json: object, target: "string?" }
+        output: { workflow: object }
+        bridge: maicrosoft.compiler.compile
+
+      - path: /compile/preview
+        method: POST
+        handler: preview_compile
+        input: { plan_json: object }
+        output: { preview: object, node_count: integer }
+
+# =============================================================================
+# FRONTEND PAGES
+# =============================================================================
+pages:
+  - path: /
+    component: Dashboard
+    layout: main
+    auth: required
+
+  - path: /login
+    component: Login
+    layout: minimal
+    auth: public
+
+  - path: /register
+    component: Register
+    layout: minimal
+    auth: public
+
+  - path: /workflows
+    component: WorkflowList
+    layout: main
+    auth: required
+
+  - path: /workflows/new
+    component: WorkflowBuilder
+    layout: canvas
+    auth: required
+    rbac: [admin, owner, editor]
+
+  - path: /workflows/{id}
+    component: WorkflowBuilder
+    layout: canvas
+    auth: required
+
+  - path: /workflows/{id}/history
+    component: RunHistory
+    layout: main
+    auth: required
+
+  - path: /runs/{id}
+    component: RunDetails
+    layout: main
+    auth: required
+
+  - path: /templates
+    component: TemplateGallery
+    layout: main
+    auth: required
+
+  - path: /secrets
+    component: SecretManager
+    layout: main
+    auth: required
+
+  - path: /settings
+    component: Settings
+    layout: main
+    auth: required
+
+  - path: /analyze
+    component: GitHubAnalyzer
+    layout: main
+    auth: required
+    description: "Killer feature - GitHub repo analysis"
+
+# =============================================================================
+# UI COMPONENTS
+# =============================================================================
+components:
+  workflow:
+    WorkflowCanvas:
+      type: react-flow
+      features:
+        - drag_drop
+        - zoom_pan
+        - minimap
+        - auto_layout
+      props:
+        nodes: Node[]
+        edges: Edge[]
+        onNodesChange: function
+        onEdgesChange: function
+        onConnect: function
+
+    NodePalette:
+      type: sidebar
+      data_source: /api/primitives
+      draggable: true
+      grouped_by: category
+
+    CustomNode:
+      type: react-flow-node
+      variants:
+        - particle (P001-P010)
+        - trigger
+        - fallback
+      displays:
+        - icon
+        - name
+        - status_indicator
+        - validation_badge
+
+    NodeConfigPanel:
+      type: form
+      dynamic: true
+      schema_source: primitive.interface.inputs
+      features:
+        - json_editor
+        - reference_autocomplete
+        - secret_picker
+
+    ValidationPanel:
+      type: panel
+      position: bottom
+      realtime: true
+      websocket: /api/ws/validate
+      displays:
+        - errors
+        - warnings
+        - data_preview
+
+  history:
+    RunHistory:
+      type: table
+      columns: [status, trigger, started_at, duration, actions]
+      sortable: true
+      filterable: true
+
+    NodeLogs:
+      type: timeline
+      expandable: true
+      displays:
+        - input_data
+        - output_data
+        - error_data
+        - duration
+
+  secrets:
+    SecretManager:
+      type: crud_table
+      model: Secret
+      actions: [create, edit, delete, rotate]
+      mask_values: true
+
+    OAuthConnector:
+      type: oauth_flow
+      providers: [google, slack, github]
+
+  github:
+    RepoAnalyzer:
+      type: form
+      fields:
+        - repo_url: { type: url, placeholder: "https://github.com/user/repo" }
+        - branch: { type: string, default: "main" }
+      submit_button: "Analyze Repository"
+
+    AnalysisReport:
+      type: report
+      sections:
+        - benefits
+        - current_architecture
+        - suggested_plan
+        - coverage_estimate
+        - gaps
+
+# =============================================================================
+# LAYOUTS
+# =============================================================================
+layouts:
+  main:
+    structure:
+      - Header
+      - Sidebar
+      - Content
+      - Footer
+    sidebar_items:
+      - { icon: home, label: Dashboard, path: / }
+      - { icon: workflow, label: Workflows, path: /workflows }
+      - { icon: template, label: Templates, path: /templates }
+      - { icon: history, label: Run History, path: /runs }
+      - { icon: key, label: Secrets, path: /secrets }
+      - { icon: github, label: Analyze Repo, path: /analyze }
+      - { icon: settings, label: Settings, path: /settings }
+
+  canvas:
+    structure:
+      - Header (minimal)
+      - NodePalette (left)
+      - WorkflowCanvas (center)
+      - NodeConfigPanel (right)
+      - ValidationPanel (bottom)
+    fullscreen: true
+
+  minimal:
+    structure:
+      - Content (centered)
+    max_width: 400px
+
+# =============================================================================
+# TEMPLATES (20 workflow templates)
+# =============================================================================
+templates:
+  data_integration:
+    - id: rest-api-sync
+      name: "REST API Sync"
+      description: "Poll API, transform, store in DB"
+      nodes: [P001, P004, P002]
+
+    - id: webhook-handler
+      name: "Webhook Handler"
+      description: "Receive webhook, validate, process"
+      trigger: webhook
+      nodes: [P005, P004, P010]
+
+    - id: csv-import
+      name: "CSV Import"
+      description: "Upload CSV, parse, insert to database"
+      nodes: [P003, P004, P006, P002]
+
+    - id: database-sync
+      name: "Database Sync"
+      description: "Sync between two databases"
+      nodes: [P002, P004, P002]
+
+  notifications:
+    - id: slack-alert
+      name: "Slack Alert"
+      description: "Condition-based Slack notifications"
+      nodes: [P001, P005, P001]
+
+    - id: email-digest
+      name: "Email Digest"
+      description: "Scheduled email summary"
+      trigger: schedule
+      nodes: [P002, P004, P001]
+
+    - id: multi-channel-alert
+      name: "Multi-Channel Alert"
+      description: "Slack + Email + SMS"
+      nodes: [P005, P001, P001, P001]
+
+  file_processing:
+    - id: s3-file-processor
+      name: "S3 File Processor"
+      description: "Watch S3, process new files"
+      trigger: event
+      nodes: [P003, P004, P003]
+
+    - id: pdf-generator
+      name: "PDF Generator"
+      description: "Generate PDF from template"
+      nodes: [P001, P004, P003]
+
+    - id: image-resizer
+      name: "Image Resizer"
+      description: "Resize uploaded images"
+      nodes: [P003, P004, P003]
+
+  ai_llm:
+    - id: content-generator
+      name: "Content Generator"
+      description: "LLM content generation pipeline"
+      nodes: [P001, P007, P004, P002]
+
+    - id: document-analyzer
+      name: "Document Analyzer"
+      description: "Extract data from documents"
+      nodes: [P003, P007, P004]
+
+    - id: sentiment-analysis
+      name: "Sentiment Analysis"
+      description: "Analyze feedback sentiment"
+      nodes: [P002, P007, P002]
+
+  ecommerce:
+    - id: order-processor
+      name: "Order Processor"
+      description: "New order handling workflow"
+      trigger: webhook
+      nodes: [P004, P002, P001, P001]
+
+    - id: inventory-sync
+      name: "Inventory Sync"
+      description: "Keep inventory in sync"
+      trigger: schedule
+      nodes: [P001, P004, P002]
+
+    - id: price-monitor
+      name: "Price Monitor"
+      description: "Track competitor prices"
+      trigger: schedule
+      nodes: [P001, P004, P005, P001]
+
+  devops:
+    - id: deployment-notifier
+      name: "Deployment Notifier"
+      description: "Notify on deployments"
+      trigger: webhook
+      nodes: [P004, P001]
+
+    - id: error-alerter
+      name: "Error Alerter"
+      description: "Alert on error thresholds"
+      trigger: schedule
+      nodes: [P002, P005, P001]
+
+    - id: health-check
+      name: "Health Check"
+      description: "Periodic health monitoring"
+      trigger: schedule
+      nodes: [P001, P005, P010, P001]
+
+  custom:
+    - id: blank
+      name: "Blank Template"
+      description: "Empty workflow to start from scratch"
+      nodes: []
+
+# =============================================================================
+# N8N INTEGRATION
+# =============================================================================
+n8n:
+  deployment:
+    docker_image: "n8nio/n8n:latest"
+    port: 5678
+    webhook_url: "https://n8n.maicrosoft.borg.tools"
+    data_folder: "/opt/maicrosoft-gui/n8n-data"
+    encryption_key: "{{ env.N8N_ENCRYPTION_KEY }}"
+
+  api:
+    base_url: "http://localhost:5678/api/v1"
+    auth:
+      type: api_key
+      header: "X-N8N-API-KEY"
+      key: "{{ env.N8N_API_KEY }}"
+
+  endpoints:
+    execute: POST /executions
+    get_execution: GET /executions/{id}
+    stop_execution: POST /executions/{id}/stop
+    get_workflows: GET /workflows
+    create_workflow: POST /workflows
+    activate_workflow: PATCH /workflows/{id}
+
+  # Mapowanie Maicrosoft particles → N8N nodes
+  particle_mapping:
+    P001_http_call:
+      n8n_type: "n8n-nodes-base.httpRequest"
+      parameters:
+        method: "{{ inputs.method }}"
+        url: "{{ inputs.url }}"
+        authentication: "{{ inputs.auth_type | default: 'none' }}"
+        sendHeaders: "{{ inputs.headers | exists }}"
+        headerParameters:
+          parameters: "{{ inputs.headers | to_n8n_params }}"
+        sendBody: "{{ inputs.body | exists }}"
+        bodyParameters:
+          parameters: "{{ inputs.body | to_n8n_params }}"
+        options:
+          timeout: "{{ inputs.timeout | default: 30000 }}"
+          retry: "{{ inputs.retry | default: 0 }}"
+
+    P002_db_query:
+      n8n_type: "n8n-nodes-base.postgres"  # or mysql based on config
+      variants:
+        postgres:
+          type: "n8n-nodes-base.postgres"
+          credentials: "postgresApi"
+        mysql:
+          type: "n8n-nodes-base.mySql"
+          credentials: "mySqlApi"
+      parameters:
+        operation: "executeQuery"
+        query: "{{ inputs.query }}"
+        options:
+          queryReplacement: "{{ inputs.params | join(',') }}"
+
+    P003_file_op:
+      n8n_type: "n8n-nodes-base.readWriteFile"
+      variants:
+        read:
+          parameters:
+            operation: "read"
+            fileSelector: "{{ inputs.path }}"
+        write:
+          parameters:
+            operation: "write"
+            fileName: "{{ inputs.path }}"
+            fileContent: "{{ inputs.content }}"
+        delete:
+          parameters:
+            operation: "delete"
+            fileSelector: "{{ inputs.path }}"
+      s3_variant:
+        type: "n8n-nodes-base.s3"
+        credentials: "s3Api"
+        parameters:
+          operation: "{{ inputs.operation }}"
+          bucketName: "{{ inputs.bucket }}"
+          fileKey: "{{ inputs.key }}"
+
+    P004_transform:
+      n8n_type: "n8n-nodes-base.code"
+      parameters:
+        mode: "runOnceForAllItems"
+        jsCode: |
+          // Generated transform: {{ inputs.operation }}
+          const items = $input.all();
+          const template = {{ inputs.template | json }};
+
+          return items.map(item => {
+            const data = item.json;
+            // Apply transformation
+            return {
+              json: {
+                {{ inputs.operation | transform_code }}
+              }
+            };
+          });
+
+    P005_branch:
+      n8n_type: "n8n-nodes-base.if"
+      parameters:
+        conditions:
+          options:
+            caseSensitive: true
+            leftValue: "{{ inputs.condition | extract_left }}"
+            operation: "{{ inputs.condition | extract_operator }}"
+            rightValue: "{{ inputs.condition | extract_right }}"
+
+    P006_loop:
+      n8n_type: "n8n-nodes-base.splitInBatches"
+      parameters:
+        batchSize: "{{ inputs.batch_size | default: 1 }}"
+        options:
+          reset: false
+
+    P007_llm_call:
+      n8n_type: "n8n-nodes-base.openAi"
+      variants:
+        openai:
+          type: "n8n-nodes-base.openAi"
+          credentials: "openAiApi"
+        anthropic:
+          type: "@n8n/n8n-nodes-langchain.lmChatAnthropic"
+          credentials: "anthropicApi"
+      parameters:
+        resource: "chat"
+        operation: "message"
+        model: "{{ inputs.model | default: 'gpt-4' }}"
+        messages:
+          values:
+            - role: "user"
+              content: "{{ inputs.prompt }}"
+        options:
+          temperature: "{{ inputs.temperature | default: 0.7 }}"
+          maxTokens: "{{ inputs.max_tokens | default: 1000 }}"
+
+    P008_cache:
+      n8n_type: "n8n-nodes-base.redis"
+      credentials: "redisApi"
+      variants:
+        get:
+          parameters:
+            operation: "get"
+            key: "{{ inputs.key }}"
+        set:
+          parameters:
+            operation: "set"
+            key: "{{ inputs.key }}"
+            value: "{{ inputs.value }}"
+            expire: true
+            ttl: "{{ inputs.ttl | default: 3600 }}"
+
+    P009_queue:
+      n8n_type: "n8n-nodes-base.rabbitmq"
+      credentials: "rabbitmqApi"
+      variants:
+        publish:
+          parameters:
+            operation: "publish"
+            queue: "{{ inputs.queue }}"
+            content: "{{ inputs.message }}"
+        consume:
+          trigger: true
+          type: "n8n-nodes-base.rabbitmqTrigger"
+          parameters:
+            queue: "{{ inputs.queue }}"
+
+    P010_log:
+      n8n_type: "n8n-nodes-base.code"
+      parameters:
+        mode: "runOnceForEachItem"
+        jsCode: |
+          // Log: {{ inputs.level }}
+          console.{{ inputs.level }}(JSON.stringify({
+            timestamp: new Date().toISOString(),
+            level: '{{ inputs.level }}',
+            message: '{{ inputs.message }}',
+            data: {{ inputs.data | json | default: '{}' }}
+          }));
+          return $input.item;
+
+  # Trigger mappings
+  trigger_mapping:
+    manual:
+      type: "n8n-nodes-base.manualTrigger"
+      parameters: {}
+
+    webhook:
+      type: "n8n-nodes-base.webhook"
+      parameters:
+        path: "{{ trigger.config.path }}"
+        httpMethod: "{{ trigger.config.method | default: 'POST' }}"
+        responseMode: "{{ trigger.config.response_mode | default: 'onReceived' }}"
+
+    schedule:
+      type: "n8n-nodes-base.scheduleTrigger"
+      parameters:
+        rule:
+          interval:
+            - field: "cronExpression"
+              expression: "{{ trigger.config.cron }}"
+
+    event:
+      type: "n8n-nodes-base.webhook"
+      parameters:
+        path: "/events/{{ trigger.config.event_type }}"
+        httpMethod: "POST"
+
+  # Workflow structure
+  workflow_template:
+    name: "{{ metadata.name }}"
+    active: false
+    settings:
+      executionTimeout: 3600
+      saveDataErrorExecution: "all"
+      saveDataSuccessExecution: "all"
+      saveManualExecutions: true
+      callerIds: ""
+      callerPolicy: "workflowsFromSameOwner"
+    staticData: null
+    tags: []
+    triggerCount: 1
+
+  # Position calculation for visual layout
+  node_positions:
+    start_x: 250
+    start_y: 300
+    spacing_x: 250
+    spacing_y: 150
+    max_per_row: 4
+
+  # Error handling configuration
+  error_handling:
+    continue_on_fail: "{{ settings.continue_on_error | default: false }}"
+    retry:
+      enabled: "{{ settings.retry.enabled | default: true }}"
+      max_tries: "{{ settings.retry.max_tries | default: 3 }}"
+      wait_between: "{{ settings.retry.wait_ms | default: 1000 }}"
+    error_workflow:
+      enabled: true
+      workflow_id: "error-handler-workflow"
+
+  # Credential templates (to be created in N8N)
+  credentials:
+    - name: postgresApi
+      type: postgres
+      data:
+        host: "{{ env.POSTGRES_HOST }}"
+        port: "{{ env.POSTGRES_PORT }}"
+        database: "{{ env.POSTGRES_DB }}"
+        user: "{{ env.POSTGRES_USER }}"
+        password: "{{ env.POSTGRES_PASSWORD }}"
+
+    - name: redisApi
+      type: redis
+      data:
+        host: "{{ env.REDIS_HOST }}"
+        port: "{{ env.REDIS_PORT }}"
+        password: "{{ env.REDIS_PASSWORD }}"
+
+    - name: openAiApi
+      type: openAiApi
+      data:
+        apiKey: "{{ env.OPENAI_API_KEY }}"
+
+    - name: anthropicApi
+      type: anthropicApi
+      data:
+        apiKey: "{{ env.ANTHROPIC_API_KEY }}"
+
+    - name: s3Api
+      type: s3
+      data:
+        accessKeyId: "{{ env.S3_ACCESS_KEY }}"
+        secretAccessKey: "{{ env.S3_SECRET_KEY }}"
+        region: "{{ env.S3_REGION }}"
+        endpoint: "{{ env.S3_ENDPOINT }}"
+
+    - name: slackApi
+      type: slackApi
+      data:
+        accessToken: "{{ secrets.slack_token }}"
+
+    - name: googleSheetsApi
+      type: googleSheetsOAuth2Api
+      data:
+        oauthTokenData: "{{ secrets.google_oauth }}"
+
+# =============================================================================
+# COMPILATION TARGET
+# =============================================================================
+compile:
+  output:
+    backend:
+      path: gui/backend
+      files:
+        - main.py
+        - config.py
+        - database.py
+        - routers/*.py
+        - services/*.py
+        - models/*.py
+        - middleware/*.py
+        - alembic/
+
+    frontend:
+      path: gui/frontend
+      files:
+        - src/App.tsx
+        - src/main.tsx
+        - src/components/**/*.tsx
+        - src/pages/**/*.tsx
+        - src/stores/*.ts
+        - src/hooks/*.ts
+        - src/api/*.ts
+        - tailwind.config.js
+        - vite.config.ts
+
+    deployment:
+      path: gui
+      files:
+        - docker-compose.yml
+        - Dockerfile.backend
+        - Dockerfile.frontend
+        - nginx.conf
+        - .env.example

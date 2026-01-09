@@ -1,0 +1,85 @@
+# P015: ui_component
+# Define UI component
+
+metadata:
+  id: P015
+  name: ui_component
+  version: "1.0.0"
+  description: "Define reusable UI component (React, Vue, etc.)"
+  category: scaffold
+  status: stable
+  tags:
+    - ui
+    - component
+    - react
+    - code-generation
+
+interface:
+  inputs:
+    - name: name
+      type: string
+      required: true
+      description: "Component name (PascalCase)"
+
+    - name: type
+      type: string
+      required: true
+      description: "Component type"
+      enum: [functional, class, form, table, modal, card, list]
+
+    - name: props
+      type: object
+      required: false
+      description: "Component props with types"
+
+    - name: state
+      type: object
+      required: false
+      description: "Internal state"
+
+    - name: hooks
+      type: array
+      required: false
+      description: "React hooks to use"
+
+    - name: api_calls
+      type: array
+      required: false
+      description: "API endpoints to call"
+
+    - name: children
+      type: array
+      required: false
+      description: "Child components"
+
+    - name: styling
+      type: string
+      required: false
+      description: "Styling approach"
+      enum: [tailwind, css-modules, styled-components]
+      default: tailwind
+
+  outputs:
+    - name: component_code
+      type: string
+      description: "Generated component code"
+
+    - name: test_code
+      type: string
+      description: "Generated test code"
+
+    - name: storybook
+      type: string
+      description: "Storybook story"
+
+examples:
+  - name: User Card Component
+    inputs:
+      name: UserCard
+      type: card
+      props:
+        user: { type: object, required: true }
+        onEdit: { type: function }
+        onDelete: { type: function }
+      styling: tailwind
+    description: "Define UserCard component with actions"

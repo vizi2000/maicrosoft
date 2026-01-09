@@ -1,0 +1,87 @@
+# P013: db_model
+# Define database model schema
+
+metadata:
+  id: P013
+  name: db_model
+  version: "1.0.0"
+  description: "Define database model with fields, relationships, and indexes"
+  category: scaffold
+  status: stable
+  tags:
+    - database
+    - model
+    - schema
+    - code-generation
+
+interface:
+  inputs:
+    - name: name
+      type: string
+      required: true
+      description: "Model class name (PascalCase)"
+
+    - name: table
+      type: string
+      required: false
+      description: "Table name (defaults to lowercase plural of name)"
+
+    - name: fields
+      type: object
+      required: true
+      description: "Field definitions with types and constraints"
+
+    - name: indexes
+      type: array
+      required: false
+      description: "Index definitions"
+
+    - name: relationships
+      type: array
+      required: false
+      description: "Relationship definitions"
+
+    - name: orm
+      type: string
+      required: false
+      description: "Target ORM"
+      enum: [sqlalchemy, prisma, django]
+      default: sqlalchemy
+
+  outputs:
+    - name: model_code
+      type: string
+      description: "Generated model code"
+
+    - name: migration
+      type: string
+      description: "Database migration SQL"
+
+field_types:
+  uuid: "UUID primary key"
+  string: "VARCHAR with optional max length"
+  text: "TEXT (unlimited)"
+  integer: "INTEGER"
+  float: "FLOAT"
+  boolean: "BOOLEAN"
+  timestamp: "TIMESTAMP WITH TIMEZONE"
+  date: "DATE"
+  jsonb: "JSONB (PostgreSQL)"
+  array: "ARRAY type"
+  bytes: "BYTEA / BLOB"
+  enum: "ENUM with specified values"
+
+examples:
+  - name: User Model
+    inputs:
+      name: User
+      table: users
+      fields:
+        id: { type: uuid, primary: true }
+        email: { type: string, unique: true, max: 255 }
+        password_hash: { type: string }
+        role: { type: enum, values: [admin, user, guest] }
+        created_at: { type: timestamp, default: now }
+      indexes:
+        - fields: [email]
+    description: "Define User model with email, password, role"

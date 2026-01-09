@@ -1,0 +1,71 @@
+# P017: websocket_handler
+# Define WebSocket endpoint
+
+metadata:
+  id: P017
+  name: websocket_handler
+  version: "1.0.0"
+  description: "Define WebSocket endpoint for real-time communication"
+  category: scaffold
+  status: stable
+  tags:
+    - websocket
+    - realtime
+    - api
+    - code-generation
+
+interface:
+  inputs:
+    - name: path
+      type: string
+      required: true
+      description: "WebSocket endpoint path"
+
+    - name: handler
+      type: string
+      required: true
+      description: "Handler function name"
+
+    - name: auth
+      type: boolean
+      required: false
+      description: "Requires authentication"
+      default: true
+
+    - name: message_types
+      type: array
+      required: false
+      description: "Supported message types"
+
+    - name: broadcast
+      type: boolean
+      required: false
+      description: "Support broadcasting to multiple clients"
+      default: false
+
+    - name: rooms
+      type: boolean
+      required: false
+      description: "Support room-based messaging"
+      default: false
+
+  outputs:
+    - name: handler_code
+      type: string
+      description: "Generated WebSocket handler code"
+
+    - name: client_code
+      type: string
+      description: "Generated client-side WebSocket code"
+
+examples:
+  - name: Validation Stream
+    inputs:
+      path: /ws/validate
+      handler: validation_stream
+      auth: true
+      message_types:
+        - validate_plan
+        - get_status
+      broadcast: false
+    description: "WebSocket for real-time plan validation"

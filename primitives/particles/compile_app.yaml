@@ -1,0 +1,57 @@
+# P018: compile_app
+# Compile meta-plan to full application
+
+metadata:
+  id: P018
+  name: compile_app
+  version: "1.0.0"
+  description: "Compile meta-plan YAML to full application code"
+  category: scaffold
+  status: stable
+  tags:
+    - compile
+    - meta-plan
+    - code-generation
+    - application
+
+interface:
+  inputs:
+    - name: meta_plan_path
+      type: string
+      required: true
+      description: "Path to meta-plan.yaml file"
+
+    - name: output_dir
+      type: string
+      required: false
+      description: "Output directory (defaults to meta-plan directory)"
+
+    - name: targets
+      type: array
+      required: false
+      description: "What to generate"
+      enum: [backend, frontend, deployment, all]
+      default: [all]
+
+    - name: dry_run
+      type: boolean
+      required: false
+      description: "Preview without writing files"
+      default: false
+
+  outputs:
+    - name: files
+      type: object
+      description: "Generated files by category"
+
+    - name: summary
+      type: object
+      description: "Generation summary with counts"
+
+examples:
+  - name: Compile Full Application
+    inputs:
+      meta_plan_path: ./gui/meta-plan.yaml
+      targets: [all]
+      dry_run: false
+    description: "Compile meta-plan to backend, frontend, and deployment files"

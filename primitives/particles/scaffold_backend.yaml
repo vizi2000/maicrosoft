@@ -1,0 +1,67 @@
+# P011: scaffold_backend
+# Generate backend application structure
+
+metadata:
+  id: P011
+  name: scaffold_backend
+  version: "1.0.0"
+  description: "Generate backend application structure (FastAPI, Flask, etc.)"
+  category: scaffold
+  status: stable
+  tags:
+    - backend
+    - fastapi
+    - flask
+    - code-generation
+
+interface:
+  inputs:
+    - name: framework
+      type: string
+      required: true
+      description: "Backend framework (fastapi, flask, django)"
+      enum: [fastapi, flask, django]
+
+    - name: database
+      type: string
+      required: false
+      description: "Database type"
+      enum: [postgresql, mysql, sqlite, mongodb]
+      default: postgresql
+
+    - name: orm
+      type: string
+      required: false
+      description: "ORM to use"
+      enum: [sqlalchemy, tortoise, prisma]
+      default: sqlalchemy
+
+    - name: auth
+      type: boolean
+      required: false
+      description: "Include authentication"
+      default: true
+
+    - name: output_path
+      type: string
+      required: true
+      description: "Output directory path"
+
+  outputs:
+    - name: files
+      type: array
+      description: "List of generated file paths"
+
+    - name: structure
+      type: object
+      description: "Generated directory structure"
+
+examples:
+  - name: FastAPI with PostgreSQL
+    inputs:
+      framework: fastapi
+      database: postgresql
+      orm: sqlalchemy
+      auth: true
+      output_path: "./backend"
+    description: "Generate FastAPI backend with PostgreSQL and JWT auth"

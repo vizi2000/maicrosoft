@@ -1,0 +1,75 @@
+# P012: scaffold_frontend
+# Generate frontend application structure
+
+metadata:
+  id: P012
+  name: scaffold_frontend
+  version: "1.0.0"
+  description: "Generate frontend application structure (React, Vue, etc.)"
+  category: scaffold
+  status: stable
+  tags:
+    - frontend
+    - react
+    - vue
+    - code-generation
+
+interface:
+  inputs:
+    - name: framework
+      type: string
+      required: true
+      description: "Frontend framework"
+      enum: [react, vue, svelte, solid]
+
+    - name: bundler
+      type: string
+      required: false
+      description: "Build tool"
+      enum: [vite, webpack, esbuild]
+      default: vite
+
+    - name: styling
+      type: string
+      required: false
+      description: "CSS framework"
+      enum: [tailwind, styled-components, css-modules, none]
+      default: tailwind
+
+    - name: state
+      type: string
+      required: false
+      description: "State management"
+      enum: [zustand, redux, mobx, none]
+      default: zustand
+
+    - name: typescript
+      type: boolean
+      required: false
+      description: "Use TypeScript"
+      default: true
+
+    - name: output_path
+      type: string
+      required: true
+      description: "Output directory path"
+
+  outputs:
+    - name: files
+      type: array
+      description: "List of generated file paths"
+
+    - name: structure
+      type: object
+      description: "Generated directory structure"
+
+examples:
+  - name: React with Vite and Tailwind
+    inputs:
+      framework: react
+      bundler: vite
+      styling: tailwind
+      state: zustand
+      typescript: true
+      output_path: "./frontend"
+    description: "Generate React frontend with Vite, Tailwind, and Zustand"

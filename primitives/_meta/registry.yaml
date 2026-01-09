@@ -77,6 +77,63 @@ particles:
     status: "stable"
     description: "Structured logging"
 
+  # Scaffold Particles (P011-P018) - Code Generation
+  - id: "P011"
+    name: "scaffold_backend"
+    path: "particles/scaffold_backend.yaml"
+    category: "scaffold"
+    status: "stable"
+    description: "Generate backend application structure"
+
+  - id: "P012"
+    name: "scaffold_frontend"
+    path: "particles/scaffold_frontend.yaml"
+    category: "scaffold"
+    status: "stable"
+    description: "Generate frontend application structure"
+
+  - id: "P013"
+    name: "db_model"
+    path: "particles/db_model.yaml"
+    category: "scaffold"
+    status: "stable"
+    description: "Define database model schema"
+
+  - id: "P014"
+    name: "api_route"
+    path: "particles/api_route.yaml"
+    category: "scaffold"
+    status: "stable"
+    description: "Define REST API endpoint"
+
+  - id: "P015"
+    name: "ui_component"
+    path: "particles/ui_component.yaml"
+    category: "scaffold"
+    status: "stable"
+    description: "Define UI component"
+
+  - id: "P016"
+    name: "ui_page"
+    path: "particles/ui_page.yaml"
+    category: "scaffold"
+    status: "stable"
+    description: "Define application page"
+
+  - id: "P017"
+    name: "websocket_handler"
+    path: "particles/websocket_handler.yaml"
+    category: "scaffold"
+    status: "stable"
+    description: "Define WebSocket endpoint"
+
+  - id: "P018"
+    name: "compile_app"
+    path: "particles/compile_app.yaml"
+    category: "scaffold"
+    status: "stable"
+    description: "Compile meta-plan to application"
+
 # Atoms (A001-A999)
 # Composed from particles, single-purpose operations
 atoms: []

@@ -1,0 +1,86 @@
+# P014: api_route
+# Define API endpoint
+
+metadata:
+  id: P014
+  name: api_route
+  version: "1.0.0"
+  description: "Define REST API endpoint with validation and auth"
+  category: scaffold
+  status: stable
+  tags:
+    - api
+    - endpoint
+    - rest
+    - code-generation
+
+interface:
+  inputs:
+    - name: path
+      type: string
+      required: true
+      description: "URL path (e.g., /users/{id})"
+
+    - name: method
+      type: string
+      required: true
+      description: "HTTP method"
+      enum: [GET, POST, PUT, PATCH, DELETE]
+
+    - name: handler
+      type: string
+      required: true
+      description: "Handler function name"
+
+    - name: input_schema
+      type: object
+      required: false
+      description: "Request body schema (for POST/PUT)"
+
+    - name: output_schema
+      type: object
+      required: false
+      description: "Response body schema"
+
+    - name: query_params
+      type: object
+      required: false
+      description: "Query parameter definitions"
+
+    - name: auth
+      type: boolean
+      required: false
+      description: "Requires authentication"
+      default: true
+
+    - name: rbac
+      type: array
+      required: false
+      description: "Required roles"
+
+    - name: rate_limit
+      type: string
+      required: false
+      description: "Rate limit (e.g., '100/minute')"
+
+  outputs:
+    - name: route_code
+      type: string
+      description: "Generated route code"
+
+    - name: openapi_spec
+      type: object
+      description: "OpenAPI specification for endpoint"
+
+examples:
+  - name: Get User Endpoint
+    inputs:
+      path: /users/{id}
+      method: GET
+      handler: get_user
+      output_schema:
+        id: uuid
+        email: string
+        name: string
+      auth: true
+    description: "Define GET user endpoint with auth"
